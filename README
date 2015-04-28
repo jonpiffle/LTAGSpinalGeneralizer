@@ -1,0 +1,11 @@
+LTAG Spinal Generalizer
+=======================
+
+This project is used to create a "generalized" treebank of elementary LTAG Spinal trees, annotated with rules for attachment/adjunction and semantic information. 
+
+To use:
+0. Install jython
+1. Compile Libin Shen's java code
+2. jython print_generalized_trees.py > trees.dat
+
+The most recent output is included in bin/trees.dat

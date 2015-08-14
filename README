@@ -6,6 +6,6 @@ This project is used to create a "generalized" treebank of elementary LTAG Spina
 To use:
 0. Install jython
 1. Compile Libin Shen's java code
-2. jython print_generalized_trees.py > trees.dat
+2. jython bin/print_generalized_trees.py > trees.dat
 
 The most recent output is included in bin/trees.dat

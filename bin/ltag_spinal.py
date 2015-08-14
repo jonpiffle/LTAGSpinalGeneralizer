@@ -29,9 +29,6 @@ class SpinalLTAGLoader(object):
             for raw_line in f:
                 line = raw_line.strip()
 
-                if len(trees) > 10000:
-                    break
-
                 if line == self.tree_begin:
                     tree = []
                 elif line == self.tree_end:

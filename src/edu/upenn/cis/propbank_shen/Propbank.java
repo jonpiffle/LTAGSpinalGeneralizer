@@ -39,7 +39,6 @@ public class Propbank extends HashMap {
             String s;
             Annotation current;
             PASLoc currentLocation;
-            System.out.print("Reading in Propbank...");
             int counter=0;
             while (br.ready()) {
                 counter++;
@@ -48,7 +47,6 @@ public class Propbank extends HashMap {
                 currentLocation = current.getPASLoc();
                 this.put(currentLocation, current);
             }
-            System.out.println("done. ("+counter+" entries)");
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {

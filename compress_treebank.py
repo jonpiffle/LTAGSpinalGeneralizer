@@ -1,5 +1,6 @@
 from collections import deque, defaultdict, Counter
-from ltag_spinal import SpinalLTAGLoader, SpinalLTAG
+from ltag_spinal import SpinalLTAG
+from spinal_loader import UncompressedSpinalLTAGLoader
 import matplotlib.pyplot as plt
 import numpy as np
 import os, pickle, json
@@ -29,8 +30,8 @@ def partition_trees(trees, partition_func=generalized_tree_representation):
         tree_dict[partition_func(tree)].append(tree)
     return tree_dict
 
-tree_loader = SpinalLTAGLoader(filename="uncompressed_trees.json")
-trees = tree_loader.load_uncompressed()
+tree_loader = UncompressedSpinalLTAGLoader(filename="uncompressed_trees.json")
+trees = tree_loader.load(limit=1000)
 
 grouped = partition_trees(trees)
 
@@ -66,4 +67,4 @@ for tree_str, group in grouped.items():
     unique_trees.append(t_dict)
 
 with open('compressed_trees.json', 'w') as f:
-    f.write(json.dumps(unique_trees))
+   f.write(json.dumps(unique_trees))

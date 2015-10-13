@@ -1,46 +1,7 @@
-import nltk
-from nltk.tree import Tree, ParentedTree
+import nltk, random
 from collections import deque, defaultdict
-from itertools import tee
-import json
-import re
-import random
-
-class SpinalLTAGLoader(object):
-    """
-    Class to load a treebank in the generalized tree format that was converted from Libin Shen's treebank
-    """
-
-    def __init__(self, filename="trees.json", pos_whitelist=None):
-        self.filename = filename
-
-        if pos_whitelist is None:
-            pos_whitelist = set()
-        self.pos_whitelist = pos_whitelist
-
-    def load_uncompressed(self, limit=None):
-        with open(self.filename) as json_file:
-            trees = json.loads(json_file.read())
-
-        if limit is not None:
-            spinal_ltags = [SpinalLTAG.from_uncompressed_dict(tree_dict) for tree_dict in trees[:limit]]
-        else:
-            spinal_ltags = [SpinalLTAG.from_uncompressed_dict(tree_dict) for tree_dict in trees]
-        return spinal_ltags
-
-    def load(self, limit=None):
-        """
-        Returns a list of SpinalLTAGs
-        """
-        with open('output/compressed_trees.json') as json_file:
-            trees = json.loads(json_file.read())
-
-        if limit is not None:
-            spinal_ltags = [tree for tree_dict in trees[:limit] for tree in SpinalLTAG.from_compressed_dict(tree_dict)]
-        else:
-            spinal_ltags = [tree for tree_dict in trees for tree in SpinalLTAG.from_compressed_dict(tree_dict)]
-        return spinal_ltags
-        
+from nltk.tree import Tree, ParentedTree
+from spinal.spinal_loader import *
 
 class SpinalLTAG(ParentedTree):
     """
@@ -92,20 +53,21 @@ class SpinalLTAG(ParentedTree):
     def applicable_rules(self):
         """
         Gets all rules that can be applied to this node in its current state.
-        Currently forcing nodes that insert in the same slot and location to be attached in ascending order
         """
 
+        '''
         app_rules = []
-
         action_dict = defaultdict(list)
         for r in self.rules:
             action_dict[tuple([r.action_location.treeposition, r.action_location.slot])].append(r)
 
         for k, rule_list in action_dict.items():
-            r = sorted(rule_list, key=lambda r: r.action_location.order)[0]
+            r = rule_list[0]
             app_rules.append(r)
 
-        return app_rules
+        return app_rules 
+        '''
+        return self.rules
 
     def open_actions(self):
         """
@@ -197,17 +159,11 @@ class SpinalLTAG(ParentedTree):
 
                 # Attach to the left of the spine
                 if loc.slot == 0:
-                    if len(left_siblings) == loc.order:
-                        attachment_location = loc.order
-                    else:
-                        continue
+                    attachment_location = loc.slot
 
                 # Attach to the right of the spine
                 elif loc.slot == 1:
-                    if len(right_siblings) == loc.order:
-                        attachment_location = loc.order + 1 + current.spine_index()
-                    else:
-                        continue
+                    attachment_location = loc.slot + current.spine_index()
 
                 # Only slot options are 0 (left) and 1 (right)
                 else:
@@ -324,85 +280,6 @@ class SpinalLTAG(ParentedTree):
         else:
             return val
 
-    @classmethod
-    def from_uncompressed_dict(cls, tree_dict):
-        # Create SpinalLTAG from spine
-        spine = re.sub('[()]', '', tree_dict['spine'])
-        node_labels = spine.split()
-        nodes = [SpinalLTAG(label, children=[], tree_type=tree_dict['type']) for label in node_labels]
-        nodes.append(tree_dict['terminal'])
-
-        for current, next in pairwise(nodes):
-            current.append(next)
-
-        root = nodes[0]
-        root.predicate = tree_dict['predicate']
-        root.roleset_id = tree_dict['roleset_id']
-        root.num_args = tree_dict['num_args']
-        root.tree_id = tree_dict['tree_id']
-        root.parent_id = tree_dict['parent_id']
-        root.parent_attach_id = tuple(tree_dict['parent_attach_id']) if tree_dict['parent_attach_id'] is not None else None
-
-        # Create rules and assign them to nodes in tree
-        for rule_dict in tree_dict['rules']:
-            rule = Rule.from_dict(rule_dict)
-
-            try:
-                root[rule.action_location.treeposition]
-                position = rule.action_location.treeposition
-                rule.action_location.treeposition = ()
-                root[position].rules.append(rule)
-            except IndexError:
-                root.rules.append(rule)
-
-        return root
-
-    @classmethod
-    def from_compressed_dict(cls, tree_dict):
-        spine = re.sub('[()]', '', tree_dict['spine'])
-        node_labels = spine.split()
-        nodes = [SpinalLTAG(label, children=[], tree_type=tree_dict['tree_type']) for label in node_labels]
-
-        for current, next in pairwise(nodes):
-            current.append(next)
-
-        root = nodes[0]
-        root.predicate = tree_dict['predicate']
-        root.roleset_id = tree_dict['roleset_id']
-        root.num_args = tree_dict['num_args']
-        root.tree_id = tree_dict['tree_id']
-
-        # Create rules and assign them to nodes in tree
-        for rule_dict in tree_dict['rules']:
-            rule_dict['treeposition'] = ".".join(['0'] + [str(i) for i in rule_dict['treeposition']])
-            rule = Rule.from_dict(rule_dict)
-
-            attach_key = str((rule_dict['treeposition'], str(rule.action_location.slot)))
-            #print(attach_key, tree_dict['attach_counts'])
-            if attach_key in tree_dict['attach_counts']:
-                rule.attach_counts = tree_dict['attach_counts'][attach_key]
-
-            try:
-                root[rule.action_location.treeposition]
-                position = rule.action_location.treeposition
-                rule.action_location.treeposition = ()
-                root[position].rules.append(rule)
-            except IndexError:
-                root.rules.append(rule)
-
-        trees = []
-        tree_count = sum(tree_dict['lexicalization'].values())
-        for word, count in tree_dict['lexicalization'].items():
-            tree = root.copy(deep=True)
-            if len(tree) == 0:
-                tree.append(word)
-            else:
-                tree[-1].append(word)
-            tree.lexicalization_count = count
-            tree.tree_count = tree_count
-            trees.append(tree)
-        return trees
-
 class Rule(object):
     def __init__(self, rule_type, pos, action_location, action_id=None, semantic_role=None, role_desc=None):
         self.rule_type = rule_type
@@ -413,7 +290,7 @@ class Rule(object):
         self.role_desc = role_desc
 
     def __repr__(self):
-        return "<Rule: %s %s on %s, slot %s, order %s, semantic_role %s>" % (self.rule_type, self.pos, self.action_location.treeposition, self.action_location.slot, self.action_location.order, self.semantic_role)
+        return "<Rule: %s %s on %s, slot %s, semantic_role %s>" % (self.rule_type, self.pos, self.action_location.treeposition, self.action_location.slot, self.semantic_role)
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and self.__dict__ == other.__dict__)
@@ -421,11 +298,13 @@ class Rule(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash(str(pos) + str(action_location) + str(semantic_role))
+
     def to_dict(self):
         return {
-            'treeposition': self.action_location.treeposition,
+            'treeposition': self.action_location.original_treeposition,
             'slot': self.action_location.slot,
-            'order': self.action_location.order,
             'rule_type': self.rule_type,
             'pos': self.pos,
             'semantic_role': self.semantic_role,
@@ -435,7 +314,7 @@ class Rule(object):
     @classmethod
     def from_dict(cls, rule_dict):
         treeaddress = TreeAddress.from_string(rule_dict['treeposition'])
-        action_location = ActionLocation(treeaddress, int(rule_dict['slot']), int(rule_dict['order']))
+        action_location = ActionLocation(treeaddress, int(rule_dict['slot']))
         return Rule(rule_dict['rule_type'], rule_dict['pos'], action_location, action_id=rule_dict.get('attach_id'), semantic_role=rule_dict.get('semantic_role'), role_desc=rule_dict.get('desc'))
 
 class TreeAddress(tuple):
@@ -448,25 +327,19 @@ class TreeAddress(tuple):
         return TreeAddress(lst)
 
 class ActionLocation(object):
-    def __init__(self, treeposition, slot, order):
+    def __init__(self, treeposition, slot, original_treeposition=None):
         self.treeposition = treeposition
         self.slot = slot
-        self.order = order
+        self.original_treeposition = original_treeposition
 
     def __repr__(self):
-        return "<Loc: %s %d %d>" % (str(self.treeposition), self.slot, self.order)
+        return "<Loc: %s %d>" % (str(self.treeposition), self.slot)
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and self.__dict__ == other.__dict__)
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
 
 def remove_chars(s, chars):
     return s.translate(str.maketrans("", "", chars))
@@ -509,8 +382,9 @@ def selectFromWeightedList(weightedlist, heuristic=lambda x: 1):
     assert False
 
 def compressed_demo():
-    tree_loader = SpinalLTAGLoader()
-    trees = tree_loader.load()
+    """Problem with ignoring order is having two rules in the same position for a tree"""
+    tree_loader = CompressedLTAGLoader(filename='output/compressed_trees.json')
+    trees = tree_loader.load(limit=1000)
 
     tree_dict = defaultdict(list)
     for tree in trees:
@@ -520,7 +394,8 @@ def compressed_demo():
     print(root)
 
     while not root.terminal_tree():
-        print(root)
+        print(root, root.num_args)
+        print(root.all_applicable_rules())
         actions = root.open_actions()
         pos = random.choice(actions)
         print(pos)
@@ -529,6 +404,7 @@ def compressed_demo():
         print('attaching', att_tree, att_tree.tree_count, att_tree.lexicalization_count)
         root = random.choice(root.attach(att_tree))
         print(root)
+        print(root.all_applicable_rules())
         print(root.fol_semantics())
         root.draw()
 

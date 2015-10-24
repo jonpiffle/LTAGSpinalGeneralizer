@@ -22,7 +22,7 @@ def generalized_tree_representation(tree):
     return (unlexicalized_spine(tree), tree.tree_type, tree.roleset_id, tuple([generalized_rule_representation(r) for r in rules]))
 
 def generalized_rule_representation(rule):
-    return (rule.rule_type, rule.pos, rule.semantic_role, rule.action_location.treeposition, rule.action_location.slot)
+    return (rule.rule_type, rule.pos, rule.semantic_role, rule.action_location.treeposition, rule.action_location.slot, rule.action_location.order)
 
 def partition_trees(trees, partition_func=generalized_tree_representation):
     tree_dict = defaultdict(list)
@@ -31,7 +31,7 @@ def partition_trees(trees, partition_func=generalized_tree_representation):
     return tree_dict
 
 tree_loader = UncompressedSpinalLTAGLoader(filename="uncompressed_trees.json")
-trees = tree_loader.load(limit=1000)
+trees = tree_loader.load()
 
 grouped = partition_trees(trees)
 

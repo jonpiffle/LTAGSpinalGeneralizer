@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FILENAME='uncompressed_trees.json'
+FILENAME='uncompressed_trees_u_rules.json'
 
 # Create new file with opening brace
 `rm $FILENAME; printf '[' > $FILENAME;`

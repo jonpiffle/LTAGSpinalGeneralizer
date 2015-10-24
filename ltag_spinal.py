@@ -39,6 +39,9 @@ class SpinalLTAG(ParentedTree):
 
         return len(self.all_applicable_rules()) == 0
 
+    def all_rules(self): 
+        return self.rules + [rule for child in self if isinstance(child, SpinalLTAG) for rule in child.all_rules()]
+
     def all_applicable_rules(self):
         """
         Gets all applicable rules in this tree through a depth-first search
@@ -53,21 +56,20 @@ class SpinalLTAG(ParentedTree):
     def applicable_rules(self):
         """
         Gets all rules that can be applied to this node in its current state.
+        Currently forcing nodes that insert in the same slot and location to be attached in ascending order
         """
 
-        '''
         app_rules = []
+
         action_dict = defaultdict(list)
         for r in self.rules:
             action_dict[tuple([r.action_location.treeposition, r.action_location.slot])].append(r)
 
         for k, rule_list in action_dict.items():
-            r = rule_list[0]
+            r = sorted(rule_list, key=lambda r: r.action_location.order)[0]
             app_rules.append(r)
 
-        return app_rules 
-        '''
-        return self.rules
+        return app_rules
 
     def open_actions(self):
         """
@@ -159,11 +161,17 @@ class SpinalLTAG(ParentedTree):
 
                 # Attach to the left of the spine
                 if loc.slot == 0:
-                    attachment_location = loc.slot
+                    if len(left_siblings) == loc.order:
+                        attachment_location = loc.order
+                    else:
+                        continue
 
                 # Attach to the right of the spine
                 elif loc.slot == 1:
-                    attachment_location = loc.slot + current.spine_index()
+                    if len(right_siblings) == loc.order:
+                        attachment_location = loc.order + 1 + current.spine_index()
+                    else:
+                        continue
 
                 # Only slot options are 0 (left) and 1 (right)
                 else:
@@ -305,6 +313,7 @@ class Rule(object):
         return {
             'treeposition': self.action_location.original_treeposition,
             'slot': self.action_location.slot,
+            'order': self.action_location.order,
             'rule_type': self.rule_type,
             'pos': self.pos,
             'semantic_role': self.semantic_role,
@@ -314,7 +323,7 @@ class Rule(object):
     @classmethod
     def from_dict(cls, rule_dict):
         treeaddress = TreeAddress.from_string(rule_dict['treeposition'])
-        action_location = ActionLocation(treeaddress, int(rule_dict['slot']))
+        action_location = ActionLocation(treeaddress, int(rule_dict['slot']), int(rule_dict['order']))
         return Rule(rule_dict['rule_type'], rule_dict['pos'], action_location, action_id=rule_dict.get('attach_id'), semantic_role=rule_dict.get('semantic_role'), role_desc=rule_dict.get('desc'))
 
 class TreeAddress(tuple):
@@ -327,9 +336,10 @@ class TreeAddress(tuple):
         return TreeAddress(lst)
 
 class ActionLocation(object):
-    def __init__(self, treeposition, slot, original_treeposition=None):
+    def __init__(self, treeposition, slot, order, original_treeposition=None):
         self.treeposition = treeposition
         self.slot = slot
+        self.order = order
         self.original_treeposition = original_treeposition
 
     def __repr__(self):
@@ -382,20 +392,20 @@ def selectFromWeightedList(weightedlist, heuristic=lambda x: 1):
     assert False
 
 def compressed_demo():
-    """Problem with ignoring order is having two rules in the same position for a tree"""
     tree_loader = CompressedLTAGLoader(filename='output/compressed_trees.json')
-    trees = tree_loader.load(limit=1000)
+    trees = tree_loader.load()
 
     tree_dict = defaultdict(list)
     for tree in trees:
         tree_dict[tree.label()].append(tree)
 
-    root = selectFromWeightedList([(t, t.lexicalization_count) for t in tree_dict["S"]])
+    root = selectFromWeightedList([(t, t.lexicalization_count) for t in tree_dict["S"] if len(set([r.semantic_role for r in t.all_rules() if r.semantic_role is not None])) > 1])
     print(root)
+    print([(k, len(v)) for k, v in tree_dict.items()])
 
     while not root.terminal_tree():
         print(root, root.num_args)
-        print(root.all_applicable_rules())
+        print(root.all_rules())
         actions = root.open_actions()
         pos = random.choice(actions)
         print(pos)
@@ -404,7 +414,7 @@ def compressed_demo():
         print('attaching', att_tree, att_tree.tree_count, att_tree.lexicalization_count)
         root = random.choice(root.attach(att_tree))
         print(root)
-        print(root.all_applicable_rules())
+        print(root.all_rules())
         print(root.fol_semantics())
         root.draw()
 

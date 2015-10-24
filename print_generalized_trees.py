@@ -131,25 +131,24 @@ def print_tree(tree_str, output_file):
 
             if tree['predicate'] is None or len(tree['rules']) > 0 and 'VBG' not in tree['spine']:
 
-                # The following code is to get rid of the idea of 'order'. Still not sure this is a good idea
-                # Instead could drop the edges we don't want then reset the orders based on the index of them sorted based on initial order
-                
                 # group rules by treeposition/slot
-                attachments = tree['rules']
+                new_rules = []
                 attachment_groups = defaultdict(list)
-                for attachment_dict in attachments:
+                for attachment_dict in tree['rules']:
                     attachment_groups[attachment_dict['attach_id']].append(attachment_dict)
 
-                # generate the set of rule combinations, choosing a unique rule at each position
-                # for each rule combination, print a tree
-                for attachment_set in product(*list(attachment_groups.values())):
-                    tree['rules'] = attachment_set
-                    json_str = json.dumps(tree) + ","
-                    output_file.write(json_str + "\n")
-                    print(json_str)
+                # Reset order counts after filtering out non-semantic attachments
+                for group in attachment_groups.values():
+                    for i, rule in enumerate(sorted(group, key=lambda x: int(x['order']))):
+                        rule['order'] = i
+                        new_rules.append(rule)
+                tree['rules'] = new_rules
 
-                    # update global tree counter
-                    tid += 1
+                json_str = json.dumps(tree) + ","
+                output_file.write(json_str + "\n")
+
+                # update global tree counter
+                tid += 1
 
     except SkippedSentenceException:
         return None
@@ -158,7 +157,6 @@ def process(section, output_filename='uncompressed_trees_u_rules.json', tree_fun
     directory = "trees"
 
     for filename in glob.glob(directory + '/' + section +'_*.txt'):
-        print(filename)
         with open(filename, 'r') as f:
             tree = ""
             for line in f:

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FILENAME='uncompressed_trees_u_rules.json'
+FILENAME='output/uncompressed_trees.json'
 
 # Create new file with opening brace
 `rm $FILENAME; printf '[' > $FILENAME;`
@@ -8,7 +8,7 @@ FILENAME='uncompressed_trees_u_rules.json'
 # Generate trees one at a time
 for ((i=0; i <= 24; i++)); do
     echo jython -J-XX:+UseConcMarkSweepGC -J-Xmx1g print_generalized_trees.py $i
-    `jython -J-XX:+UseConcMarkSweepGC -J-Xmx1g print_generalized_trees.py $i $FILENAME`
+    `jython -J-XX:+UseConcMarkSweepGC -J-Xmx1g print_generalized_trees.py $i $FILENAME print_trees`
 done
 
 # Remove trailing comma

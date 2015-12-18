@@ -2,7 +2,7 @@ import copy
 import itertools
 import config
 from reward import Reward
-from semantics import SemanticMeaning
+from default.semantics import SemanticMeaning
 
 class SpinalReward(Reward):
     def __init__(self, worldfile, goalfile):
@@ -62,7 +62,7 @@ class SpinalReward(Reward):
                     max_score += 50 / len(describes_count[entity])
 
         final_val = (max_score / (total_possible or 300.0)) - (0.001 * len(str(tree)))
-        print(tree, tree.fol_semantics(), final_val)
+        #print(tree, tree.fol_semantics(), final_val)
         return final_val
 
     def describes(self, meanings, entity):

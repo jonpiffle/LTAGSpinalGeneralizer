@@ -43,6 +43,13 @@ def print_pred(pred_key):
             print(dir_num, file_num, sen_num, ltagtb_file)
             GraphvizWalker.main([ltagtb_file, dir_num, file_num, sen_num])
 
+def print_sent(dir_num, file_num, sen_num):
+    ltagtb_file = ltagtb_path + ltagtb_filename(dir_num)
+    print(dir_num, file_num, sen_num, ltagtb_file)
+    GraphvizWalker.main([ltagtb_file, dir_num, file_num, sen_num])
+
+
 if __name__ == '__main__':
     #command to convert all dots to pngs: dot *.dot -Tpng -O
-    print_pred('join.01')
+    #print_pred('join.01')
+    print_sent('0', '12', '7')

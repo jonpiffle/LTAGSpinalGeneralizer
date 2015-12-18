@@ -1,31 +1,5 @@
 from spinal.spinal_grammar import SpinalGrammar
-
-class State:
-    """
-    A state contains:
-        -a partial sentence (in the form of a tree)
-        -a grammar that defines a set of legal actions to generate a next state
-        -a reward function that evaluates how good a state is
-        -an exploration constant that balances exploration vs exploitation
-    """
-
-    def __init__(self, exploration_constant, tree, grammar, reward):
-        raise NotImplementedError
-
-    def clone(self):
-        raise NotImplementedError
-
-    def execute_action(self, action):
-        raise NotImplementedError
-
-    def actions(self):
-        raise NotImplementedError
-
-    def get_value(self):
-        raise NotImplementedError
-
-    def is_terminal(self):
-        raise NotImplementedError
+from state import State
 
 class SpinalState(State):
     """
@@ -150,14 +124,19 @@ class InitialAction(TreeAction):
         return "<InitialAction: %s>" % (str(self.tree))
 
 def demo():
-    pos_whitelist  = set(["S", "NP", "NN", "VP", "VB", "VBD", ".", ",", "NNP", "DT"])
-    grammar = SpinalGrammar.from_file(filename="../../grammars/trees.dat", pos_whitelist=pos_whitelist)
+    #pos_whitelist  = set(["S", "NP", "NN", "VP", "VB", "VBD", ".", ",", "NNP", "DT"])
+    grammar = SpinalGrammar.from_file()
+    print(grammar.tree_dict['S'])
     state = SpinalState(0.5, None, grammar, None)
     while not state.is_terminal():
         print(state)
         state.execute_action(0)
+        state.tree.draw()
     print(state)
     state.tree.draw()
 
 if __name__ == "__main__":
     demo()
+
+
+

@@ -1,4 +1,4 @@
-import json, re
+import json, re, os, pickle
 from itertools import tee
 from spinal.ltag_spinal import SpinalLTAG, Rule
 
@@ -11,11 +11,8 @@ def pairwise(iterable):
 class SpinalLTAGLoader(object):
     """Class to load a treebank in the generalized tree format that was converted from Libin Shen's treebank """
 
-    def __init__(self, filename="trees.json", pos_whitelist=None):
+    def __init__(self, filename="trees.json"):
         self.filename = filename
-        if pos_whitelist is None:
-            pos_whitelist = set()
-        self.pos_whitelist = pos_whitelist
 
     def load(self, limit=None):
         raise NotImplementedError
@@ -35,14 +32,15 @@ class SpinalLTAGLoader(object):
             rule.action_location.treeposition = ()
             root[position].rules += [rule]
         except IndexError:
+            rule.action_location.original_treeposition = rule.action_location.treeposition
             root.rules += [rule]
         return root
 
 class CompressedLTAGLoader(SpinalLTAGLoader):
     """Class to load SpinalLTAG's from a compressed json format"""
 
-    def __init__(self, filename=None, pos_whitelist=None):
-        return super(CompressedLTAGLoader, self).__init__(filename, pos_whitelist)
+    def __init__(self, filename=None):
+        return super(CompressedLTAGLoader, self).__init__(filename)
 
     def load(self, limit=None):
         with open(self.filename) as json_file:
@@ -111,8 +109,8 @@ class CompressedLTAGLoader(SpinalLTAGLoader):
         return trees
 
 class UncompressedSpinalLTAGLoader(SpinalLTAGLoader):
-    def __init__(self, filename=None, pos_whitelist=None):
-        return super(UncompressedSpinalLTAGLoader, self).__init__(filename, pos_whitelist)
+    def __init__(self, filename=None): 
+        return super(UncompressedSpinalLTAGLoader, self).__init__(filename)
 
     def load(self, limit=None):
         with open(self.filename) as json_file:

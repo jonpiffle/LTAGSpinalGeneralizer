@@ -1,69 +1,52 @@
-import re
+import re, os, pickle
 from collections import defaultdict
 from spinal.ltag_spinal import SpinalLTAG
+from spinal.spinal_loader import CompressedLTAGLoader
 
 class SpinalGrammar(object):
     """
     Stores the grammar formed by a full set of LTAG-Spinal elementary trees
     """
-    def __init__(self, trees, start_symbol):
+    def __init__(self, trees, start_symbol, limit=None):
         self.trees = trees
         self.start = start_symbol
         self.tree_dict = defaultdict(list)
         for tree in trees:
-            self.tree_dict[tree.label()].append(tree)
+            if limit is None or len(self.tree_dict[tree.label()]) < limit:
+                self.tree_dict[tree.label()].append(tree)
 
     def __repr__(self):
         return "<SpinalGrammar: start symbol=%s, num trees=%d>" % (self.start, len(self.trees))
 
     @classmethod
-    def from_file(cls, filename="trees.dat", tree_begin="TREE BEGIN", tree_end="TREE END", pos_whitelist=None, tree_whitelist=None, limit=5000):
+    def from_file(cls, tree_loader_cls=CompressedLTAGLoader, filename="output/compressed_trees.json", pos_whitelist=None, tree_whitelist=None, limit=None, update=False):
         """
         Loads the grammar from a file and returns a SpinalGrammar object
         During loading, filters according to a pos whitelist and a tree whitelist
         """
+        pickle_filename = filename.split(".")[0] + ".pickle"
+        if not os.path.exists(pickle_filename) or update:
 
-        if pos_whitelist is None:
-            pos_whitelist = set(["S", "NP", "NN", "VP", "VB", "VBD", ".", "DT"])
+            if pos_whitelist is None:
+                pos_whitelist = set(["S", "NP", "NN", "VP", "VB", "VBD", "DT", 'JJ', 'ADJP', 'NNS', 'IN', 'JJR', 'JJS', 'NNP', 'PRN'])
 
-        if tree_whitelist is None:
-            tree_whitelist = set(["NP \(NN", "^S \(VP", "VP \(VB", "VP \(VBD", "\.", "^\(DT"])
+            if tree_whitelist is None:
+                tree_whitelist = set(["^\(NN [a-z]+", "^\(NP \(NN", "^\(S \(VP", "^\(DT", "^\(ADJP", "^\(JJ"])
 
-        with open(filename) as f:
-            trees = []
-            tree = []
+            tree_loader = tree_loader_cls(filename)
 
-            for raw_line in f:
-                line = raw_line.strip()
+            final_trees = [] 
+            trees = tree_loader.load()
+            for tree in trees:
+                if len(tree.pos_set() - pos_whitelist) > 0:
+                    continue
 
-                if len(trees) > limit:
-                    break
+                if all(re.search(t_allowed, str(tree)) is None for t_allowed in tree_whitelist):
+                    continue
 
-                if line == tree_begin:
-                    tree = []
-                elif line == tree_end:
-                    trees.append(tree)
-                else:
-                    tree.append(line)
+                final_trees.append(tree)
+            pickle.dump(final_trees, open(pickle_filename, 'wb'))
+        else:
+            final_trees = pickle.load(open(pickle_filename, 'rb'))
 
-        spinal_ltags = []
-        tree_set = set()
-        for tree in trees:
-            spinal_ltag = SpinalLTAG.from_tree_string_array(tree)
-
-            if len(spinal_ltag.pos_set() - pos_whitelist) > 0:
-                continue
-            if str(spinal_ltag) in tree_set:
-                continue
-
-            cont = True
-            for tree_allowed in tree_whitelist:
-                if re.search(tree_allowed, str(spinal_ltag)) is not None:
-                    cont = False
-            if cont:
-                continue
-
-            spinal_ltags.append(spinal_ltag)
-            tree_set.add(str(spinal_ltag))
-
-        return SpinalGrammar(spinal_ltags, "S")
+        return SpinalGrammar(final_trees, "S", limit=limit)

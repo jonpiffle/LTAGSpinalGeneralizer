@@ -6,7 +6,11 @@ import numpy as np
 import os, pickle, json
 
 def unlexicalized_spine(tree):
-    return "(" + tree.label() + " " + " ".join([unlexicalized_spine(c) for c in tree if isinstance(c, SpinalLTAG)]) + ")"
+    ''' (S (VP (VB ran))) -> (S (VP (VB )))'''
+    if tree.__class__.__name__ != "SpinalLTAG":
+        return ""
+    else:
+        return "(" + tree.label() + " " + unlexicalized_spine(tree[0]) + ")"
 
 def get_all_rules(tree):
     rules = []
@@ -30,7 +34,7 @@ def partition_trees(trees, partition_func=generalized_tree_representation):
         tree_dict[partition_func(tree)].append(tree)
     return tree_dict
 
-tree_loader = UncompressedSpinalLTAGLoader(filename="uncompressed_trees.json")
+tree_loader = UncompressedSpinalLTAGLoader(filename="output/uncompressed_trees.json")
 trees = tree_loader.load()
 
 grouped = partition_trees(trees)
@@ -66,5 +70,5 @@ for tree_str, group in grouped.items():
     }
     unique_trees.append(t_dict)
 
-with open('compressed_trees.json', 'w') as f:
+with open('output/compressed_trees.json', 'w') as f:
    f.write(json.dumps(unique_trees))

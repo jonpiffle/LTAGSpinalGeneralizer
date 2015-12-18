@@ -164,6 +164,52 @@ def process(section, output_filename='uncompressed_trees_u_rules.json', tree_fun
         with open(output_filename, 'a') as output_file:
             tree_function(tree, output_file=output_file)
 
+def generate_semantics(tree_str, output_file="propbank_args.txt"):
+    sentence = Sentence(tree_str)
+    semantics = {}
+
+    #print 
+    #print sentence.getLocation()
+    semantic_args = []
+    try:
+        elem_trees = sentence.getElemTrees()
+        surface = " ".join([elem_tree.getTerminal() for elem_tree in elem_trees])
+        palocs = {elem.getPASLoc() for elem in elem_trees}
+        annotations = [propbank[paloc] for paloc in palocs if paloc in propbank]
+
+        for annotation in annotations:
+            pred = annotation.getRoleSetId()
+            pastruct = annotation.getPAStruct()
+            for arg in pastruct.getArgs():
+                arg_label = arg.arg_label
+                wordspans = sorted(arg.getLocation().getAllWordSpans())
+                frags = [[(et.getPOS(), et.getTerminal()) for et in ws.getSubTree(sentence).getDominatedElemTrees()] for ws in wordspans if sentence.getSubTree(ws) is not None]
+                if arg_label.isNumbered():
+                    #print (pred, arg_label, wordspans, frags)
+                    semantic_args += frags
+        output_file.write(str(semantic_args) + "\n")
+        '''
+            if elem.getPASLoc() in propbank:
+                annotation = propbank[elem.getPASLoc()]
+                pred = annotation.getRoleSet()
+                pastruct = annotation.getPAStruct()
+                print (elem, elem.getSpan().toString(), [a for a in pastruct.getArgs()], [s.toString() for a in pastruct.getArgs() for s in a.getLocation().getAllWordSpans()])
+                matching_args = [a for a in pastruct.getArgs() if elem.getSpan().toString() in [s.toString() for s in a.getLocation().getAllWordSpans()]]
+                if len(matching_args) > 0:
+                    label = matching_args[0].arg_label
+                    if label.isNumbered():
+                        print label, pred, elem.getSpan()
+        '''
+
+    except SkippedSentenceException:
+        return None
+
 if __name__ == "__main__":
     """This file is intended to be run from print_all_trees.sh """
-    process(sys.argv[1], output_filename=sys.argv[2])
+    if sys.argv[3] == 'print_trees':
+        tree_function = print_tree
+    elif sys.argv[3] == 'print_args':
+        tree_function = generate_semantics
+    else:
+        print("usage: jython print_generalized_trees.py <section_num> <output_filename> [print_trees | print_args]")
+    process(sys.argv[1], output_filename=sys.argv[2], tree_function=tree_function)

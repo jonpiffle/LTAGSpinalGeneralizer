@@ -1,7 +1,7 @@
 import nltk, random
 from collections import deque, defaultdict
 from nltk.tree import Tree, ParentedTree
-from spinal.spinal_loader import *
+#from spinal.spinal_loader import *
 
 class SpinalLTAG(ParentedTree):
     """
@@ -240,7 +240,9 @@ class SpinalLTAG(ParentedTree):
             for i, (role, arg) in enumerate(sorted_arg_list):
                 entities.add(self.entity_from_treeposition(arg, i=i))
                 if arg is not None:
-                    semantics.add(self.predicate_from_treeposition(arg, i=i))
+                    predicate = self.predicate_from_treeposition(arg, i=i)
+                    if predicate is not None:
+                        semantics.add(predicate)
 
         return entities, semantics
 
@@ -391,6 +393,7 @@ def selectFromWeightedList(weightedlist, heuristic=lambda x: 1):
             return i
     assert False
 
+'''
 def compressed_demo():
     tree_loader = CompressedLTAGLoader(filename='output/compressed_trees.json')
     trees = tree_loader.load()
@@ -422,3 +425,4 @@ def compressed_demo():
 
 if __name__ == "__main__":
     compressed_demo()
+'''
